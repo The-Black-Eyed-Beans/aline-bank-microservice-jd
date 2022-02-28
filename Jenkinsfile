@@ -46,19 +46,19 @@ pipeline {
         archiveArtifacts artifacts: '**/target/*.jar', followSymlinks: false
       }
     }
-    stage('clean-workspace') {
-      steps {
-        script {
-          gv.cleanWorkspace()
-        }
-      }
-    }
     stage("deploy") {
       steps {
         script {
           gv.deployToECR()
         }
       }
+    }
+  }
+  post {
+    always {
+      script {
+          gv.postAlways()
+        }
     }
   }
 }

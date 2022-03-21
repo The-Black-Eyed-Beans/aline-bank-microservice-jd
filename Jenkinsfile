@@ -65,10 +65,8 @@ pipeline {
     }
     stage("Get Secrets"){
       steps {
-        steps {
-          sh "aws s3 cp s3://beb-bucket-jd/cluster/aline/docker-compose.yaml . --profile joshua"
-          sh """aws secretsmanager  get-secret-value --secret-id prod/services --region us-east-2 --profile joshua | jq -r '.["SecretString"]' | jq '.' > secrets"""
-        }
+        sh "aws s3 cp s3://beb-bucket-jd/cluster/aline/docker-compose.yaml . --profile joshua"
+        sh """aws secretsmanager  get-secret-value --secret-id prod/services --region us-east-2 --profile joshua | jq -r '.["SecretString"]' | jq '.' > secrets"""
       }
     }
     stage("Create Deployment Environment"){
@@ -95,6 +93,7 @@ pipeline {
         sh "docker context use prod-jd"
         sh "docker compose -p $DOCKER_IMAGE --env-file .env up -d"
       }
+    }
   }
   post {
     cleanup {

@@ -5,7 +5,7 @@ x-aws-cluster: ${CLUSTER}
 
 services:
   bank-microservice:
-    image: $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/bank-microservice-jd:${BUILD_TAG}
+    image: $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/bank-microservice-jd:$BUILD_TAG
     networks:
       - default
     secrets:

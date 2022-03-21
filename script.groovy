@@ -17,6 +17,13 @@ def buildApp() {
   sh "cp **/target/*.jar ."
 }
 
+def deployECS() {
+  sh "aws s3 cp s3://beb-bucket-jd/cluster/aline/docker-compose.yaml . --profile joshua"
+  sh "aws secretsmanager get-secret-value prod/services secrets.json --profile joshua | jq -r '.["SecretString"]' | jq '.' > secrets.json"
+  def jsonSlurper = new JsonSlurper()
+  data = jsonSlurper.parse(new File(filename))
+}
+
 def getSecrets() {
   sh "aws s3 cp s3://beb-bucket-jd/cluster/aline/docker-compose.yaml . --profile joshua"
   sh """aws secretsmanager  get-secret-value --secret-id prod/services --region us-east-2 --profile joshua | jq -r '.["SecretString"]' | jq '.' > secrets"""

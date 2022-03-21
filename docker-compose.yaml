@@ -1,0 +1,59 @@
+version: "3.9"
+
+x-aws-vpc: ${VPC}
+x-aws-cluster: ${CLUSTER}
+
+services:
+  bank-microservice:
+    image: $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/bank-microservice-jd:${BUILD_TAG}
+    networks:
+      - default
+    secrets:
+      - MYSQL_USER
+      - MYSQL_PASSWORD
+      - MYSQL_DATABASE
+      - MYSQL_HOST
+      - MYSQL_PORT
+      - ENCRYPT_SECRET_KEY
+      - JWT_SECRET_KEY
+    environment:
+      - APP_PORT=${APP_PORT}
+      - WAIT_TIME=${WAIT_TIME}
+networks:
+  default:
+    external: true
+    name: ${SECUTIRY_GROUP}
+secrets:
+  MYSQL_USER:
+    name: ${MYSQL_USER_ARN}
+    external: true
+  MYSQL_PASSWORD:
+    name: ${MYSQL_PASSWORD_ARN}
+    external: true
+  MYSQL_ROOT_PASSWORD:
+    name: ${MYSQL_ROOT_PASSWORD_ARN}
+    external: true
+  MYSQL_DATABASE:
+    name: ${MYSQL_DATABASE_ARN}
+    external: true
+  MYSQL_PORT:
+    name: ${MYSQL_PORT_ARN}
+    external: true
+  MYSQL_HOST:
+    name: ${MYSQL_HOST_ARN}
+    external: true
+  ENCRYPT_SECRET_KEY:
+    name: ${ENCRYPT_SECRET_KEY_ARN}
+    external: true
+  JWT_SECRET_KEY:
+    name: ${JWT_SECRET_KEY_ARN}
+    external: true
+
+x-aws-cloudformation:
+  Resources:
+    BankmicroserviceService:
+      Properties:
+        NetworkConfiguration:
+          AwsvpcConfiguration:
+            Subnets:
+              - ${SUBNET}

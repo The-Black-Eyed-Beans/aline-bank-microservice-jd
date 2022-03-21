@@ -1,3 +1,6 @@
+import groovy.json.JsonSlurper
+
+def data = ""
 def gv
 
 pipeline {
@@ -14,7 +17,7 @@ pipeline {
   }
 
   environment {
-    AWS_ACCOUNT_ID = credentials("AWS-ACCOUNT-ID")
+    AWS_ACCOUNT_ID = credentials("AWS_ACCOUNT_ID")
     DOCKER_IMAGE = "bank-microservice"
     ECR_REGION = "us-east-2"
   }
@@ -44,7 +47,7 @@ pipeline {
     stage("SonarQube") {
       steps {
         withSonarQubeEnv("us-west-1-sonar") {
-            sh "mvn sonar:sonar"
+            sh "mvn verify sonar:sonar"
         }
       }
     }
@@ -57,6 +60,29 @@ pipeline {
       steps {
         script {
           gv.upstreamToECR()
+        }
+      }
+    }
+    stage("Get Secrets"){
+      steps {
+        script {
+          gv.getSecrets()
+        }
+      }
+    }
+    stage("Create Deployment Environment"){
+      steps {
+        script {
+          gv.createEnv()
+        }
+        sh "rm -f .env && touch .env"
+        writeFile(file: '.env', text: data)
+      }
+    }
+    stage("Deploy to ECS"){
+      steps {
+        script {
+          gv.deployToECS()
         }
       }
     }

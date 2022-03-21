@@ -65,27 +65,36 @@ pipeline {
     }
     stage("Get Secrets"){
       steps {
-        script {
-          gv.getSecrets()
+        steps {
+          sh "aws s3 cp s3://beb-bucket-jd/cluster/aline/docker-compose.yaml . --profile joshua"
+          sh """aws secretsmanager  get-secret-value --secret-id prod/services --region us-east-2 --profile joshua | jq -r '.["SecretString"]' | jq '.' > secrets"""
         }
       }
     }
     stage("Create Deployment Environment"){
       steps {
         script {
-          gv.createEnv()
+          secretKeys = """${sh(script: 'cat secrets | jq "keys"', returnStdout: true).trim()}"""
+          secretValues = """${sh(script: 'cat secrets | jq "values"', returnStdout: true).trim()}"""
+          def parser = new JsonSlurper()
+          def keys = parser.parseText(secretKeys)
+          def values = parser.parseText(secretValues)
+          for (key in keys) {
+              def val="${key}=${values[key]}"
+              data += "${val}\n"
+          }
         }
-        sh "rm -f .env && touch .env"
-        writeFile(file: '.env', text: data)
+        script {
+          sh "rm -f .env && touch .env"
+          writeFile(file: '.env', text: data)
+        }
       }
     }
     stage("Deploy to ECS"){
       steps {
-        script {
-          gv.deployToECS()
-        }
+        sh "docker context use prod-jd"
+        sh "docker compose -p $DOCKER_IMAGE --env-file .env up -d"
       }
-    }
   }
   post {
     cleanup {

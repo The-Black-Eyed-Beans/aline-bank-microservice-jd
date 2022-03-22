@@ -25,25 +25,25 @@ networks:
     name: ${SECUTIRY_GROUP}
 secrets:
   MYSQL_USER:
-    name: "${MYSQL_USER_ARN}"
+    name: ${MYSQL_USER_ARN}
     external: true
   MYSQL_PASSWORD:
-    name: "${MYSQL_PASSWORD_ARN}"
+    name: ${MYSQL_PASSWORD_ARN}
     external: true
   MYSQL_DATABASE:
-    name: "${MYSQL_DATABASE_ARN}"
+    name: ${MYSQL_DATABASE_ARN}
     external: true
   MYSQL_PORT:
-    name: "${MYSQL_PORT_ARN}"
+    name: ${MYSQL_PORT_ARN}
     external: true
   MYSQL_HOST:
-    name: "${MYSQL_HOST_ARN}"
+    name: ${MYSQL_HOST_ARN}
     external: true
   ENCRYPT_SECRET_KEY:
-    name: "${ENCRYPT_SECRET_KEY_ARN}"
+    name: ${ENCRYPT_SECRET_KEY_ARN}
     external: true
   JWT_SECRET_KEY:
-    name: "${JWT_SECRET_KEY_ARN}"
+    name: ${JWT_SECRET_KEY_ARN}
     external: true
 
 x-aws-cloudformation:

@@ -31,20 +31,20 @@ pipeline {
         }
       }
     }
-    stage("Build") {
-      steps {
-        script {
-          gv.buildApp()
-        }
-      }
-    }
     stage("Test") {
       steps {
         script {
           gv.testApp()
         }
       } 
-    }    
+    }   
+    stage("Package Artifact") {
+      steps {
+        script {
+          gv.buildApp()
+        }
+      }
+    } 
     stage("SonarQube") {
       steps {
         withSonarQubeEnv("us-west-1-sonar") {

@@ -28,4 +28,10 @@ if [ -f /run/secrets/JWT_SECRET_KEY ]; then
   export JWT_SECRET_KEY=$(cat /run/secrets/JWT_SECRET_KEY)
 fi
 
+set -e
+
+if [ -n "$DB_HOST" ]; then
+  ./wait-for-it.sh -t $WAIT_TIME "$DB_HOST:${DB_PORT:-DB_PORT}"
+fi
+
 exec "$@"

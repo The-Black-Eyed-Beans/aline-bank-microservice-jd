@@ -5,7 +5,7 @@ x-aws-cluster: ${CLUSTER}
 
 services:
   bank-microservice:
-    image: joshuad23/aline-bank-micro:latest
+    image: $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/bank-microservice-jd:latest
     networks:
       - default
     secrets:

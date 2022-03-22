@@ -13,7 +13,7 @@ def testApp() {
 def postCleanup() {
   if (params.IS_CLEANWORKSPACE) {
     sh "rm -rf ./*"
-    sh "docker image prune -af"
+    sh "docker context use default && docker image prune -af"
   }
 }
 

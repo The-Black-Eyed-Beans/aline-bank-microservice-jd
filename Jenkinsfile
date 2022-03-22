@@ -82,14 +82,12 @@ pipeline {
               data += "${val}\n"
           }
         }
-        script {
-          sh "rm -f .env && touch .env"
-          writeFile(file: '.env', text: data)
-          sh "echo 'BUILD_TAG=$COMMIT_HASH' >> .env"
-          sh "echo 'APP_PORT=80' >> .env"
-          sh "echo 'WAIT_TIME=1000' >> .env"
-          sh "cat .env"
-        }
+        sh "rm -f .env && touch .env"
+        writeFile(file: '.env', text: data)
+        sh "echo 'BUILD_TAG=$COMMIT_HASH' >> .env"
+        sh "echo 'APP_PORT=80' >> .env"
+        sh "echo 'WAIT_TIME=1000' >> .env"
+        sh "cat .env"
       }
     }
     stage("Deploy to ECS"){

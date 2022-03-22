@@ -1,8 +1,7 @@
 def buildApp() {
   sh "git submodule init"
   sh "git submodule update"
-  sh "mvn install -DskipTests"
-  sh "cp $DOCKER_IMAGE-microservice/target/*.jar ."
+  sh "mvn clean package -DskipTests"
 }
 
 def testApp() {
@@ -21,6 +20,7 @@ def postCleanup() {
 def upstreamToECR() {
   if (params.IS_DEPLOYING) {
     env.CURRENT_HASH = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+    sh "cp $DOCKER_IMAGE-microservice/target/*.jar ."
     sh "docker context use default"
     sh 'aws ecr get-login-password --region $ECR_REGION --profile joshua | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com'
     sh "docker build -t ${DOCKER_IMAGE} ."

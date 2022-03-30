@@ -28,7 +28,11 @@ pipeline {
     }
     stage("Test") {
       steps {
-        sh "mvn clean test"
+        script {
+          if (params.IS_TESTING) {
+            sh "mvn clean test -Dmaven.test.failure.ignore=true"
+          }
+        }
       } 
     }   
     stage("Package Artifact") {
@@ -41,67 +45,60 @@ pipeline {
     stage("SonarQube") {
       steps {
         withSonarQubeEnv("us-west-1-sonar") {
-            sh "mvn verify sonar:sonar"
+          sh "mvn verify sonar:sonar"
         }
       }
     }
     stage("Await Quality Gate") {
       steps {
-          waitForQualityGate abortPipeline: true
+        waitForQualityGate abortPipeline: true
       }
     }
     stage("Upstream to ECR") {
       steps {
-        script {
-          if (params.IS_DEPLOYING) {
-            env.CURRENT_HASH = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
-            sh "cp $DOCKER_IMAGE-microservice/target/*.jar ."
-            sh "docker context use default"
-            sh 'aws ecr get-login-password --region $ECR_REGION --profile joshua | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com'
-            sh "docker build -t ${DOCKER_IMAGE} ."
-            sh 'docker tag $DOCKER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/$DOCKER_IMAGE-microservice-jd:$CURRENT_HASH'
-            sh 'docker tag $DOCKER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/$DOCKER_IMAGE-microservice-jd:latest'
-            sh 'docker push $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/$DOCKER_IMAGE-microservice-jd:$CURRENT_HASH'
-            sh 'docker push $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/$DOCKER_IMAGE-microservice-jd:latest'
-          }
-        }
+        upstreamToECR()
       }
     }
     stage("Fetch Environment Variables"){
       steps {
-        sh "aws lambda invoke --function-name getServiceEnv data.json --profile $AWS_PROFILE"
+        sh "aws lambda invoke --function-name getServiceEnv env --profile $AWS_PROFILE"
+        createEnvFile()
       }
     }
     stage("Deploy to ECS"){
-      environment {
-        ARN_ENCRYPT_SECRET_KEY = "${sh(script: """cat data.json | jq -r '.["body"]["ARN_ENCRYPT_SECRET_KEY"]'""", returnStdout: true).trim()}"
-        ARN_JWT_SECRET_KEY = "${sh(script: """cat data.json | jq -r '.["body"]["ARN_JWT_SECRET_KEY"]'""", returnStdout: true).trim()}"
-        ARN_MYSQL_DATABASE = "${sh(script: """cat data.json | jq -r '.["body"]["ARN_MYSQL_DATABASE"]'""", returnStdout: true).trim()}"
-        ARN_MYSQL_HOST = "${sh(script: """cat data.json | jq -r '.["body"]["ARN_MYSQL_HOST"]'""", returnStdout: true).trim()}"
-        ARN_MYSQL_PASSWORD = "${sh(script: """cat data.json | jq -r '.["body"]["ARN_MYSQL_PASSWORD"]'""", returnStdout: true).trim()}"
-        ARN_MYSQL_PORT = "${sh(script: """cat data.json | jq -r '.["body"]["ARN_MYSQL_PORT"]'""", returnStdout: true).trim()}"
-        ARN_MYSQL_USER = "${sh(script: """cat data.json | jq -r '.["body"]["ARN_MYSQL_USER"]'""", returnStdout: true).trim()}"
-        APP_PORT = "${sh(script: """cat data.json | jq -r '.["body"]["APP_PORT"]'""", returnStdout: true).trim()}"
-        CLUSTER = "${sh(script: """cat data.json | jq -r '.["body"]["CLUSTER"]'""", returnStdout: true).trim()}"
-        LOAD_BALANCER = "${sh(script: """cat data.json | jq -r '.["body"]["LOAD_BALANCER"]'""", returnStdout: true).trim()}"
-        SG_PRIVATE = "${sh(script: """cat data.json | jq -r '.["body"]["SG_PRIVATE"]'""", returnStdout: true).trim()}"
-        SUBNET_ONE = "${sh(script: """cat data.json | jq -r '.["body"]["SUBNET_ONE"]'""", returnStdout: true).trim()}"
-        SUBNET_TWO = "${sh(script: """cat data.json | jq -r '.["body"]["SUBNET_TWO"]'""", returnStdout: true).trim()}"
-        VPC = "${sh(script: """cat data.json | jq -r '.["body"]["VPC"]'""", returnStdout: true).trim()}"
-        WAIT_TIME = "${sh(script: """cat data.json | jq -r '.["body"]["WAIT_TIME"]'""", returnStdout: true).trim()}"
-      }
       steps {
         sh "docker context use prod-jd"
-        sh "docker compose -p $DOCKER_IMAGE-jd up -d"
+        sh "docker compose -p $DOCKER_IMAGE-jd --env-file service.env up -d"
       }
     }
   }
   post {
     cleanup {
       script {
-          sh "rm -rf ./*"
-          sh "docker image prune -af"
+        sh "docker context use default"
+        sh "rm -rf ./*"
+        sh "docker image prune -af"
       }
     }
+  }
+}
+
+def createEnvFile() {
+  def env = sh(returnStdout: true, script: """cat ./env | jq '.["body"]'""").trim()
+  env = sh(returnStdout: true, script: """echo ${env} | base64 --decode""").trim()
+  writeFile file: 'service.env', text: env
+}
+
+def upstreamToECR() {
+  if (params.IS_DEPLOYING) {
+    env.CURRENT_HASH = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+    sh "cp $DOCKER_IMAGE-microservice/target/*.jar ."
+    sh "docker context use default"
+    sh 'aws ecr get-login-password --region $ECR_REGION --profile joshua | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com'
+    sh "docker build -t ${DOCKER_IMAGE} ."
+    sh 'docker tag $DOCKER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/$DOCKER_IMAGE-microservice-jd:$CURRENT_HASH'
+    sh 'docker tag $DOCKER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/$DOCKER_IMAGE-microservice-jd:latest'
+    sh 'docker push $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/$DOCKER_IMAGE-microservice-jd:$CURRENT_HASH'
+    sh 'docker push $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/$DOCKER_IMAGE-microservice-jd:latest'
   }
 }

@@ -22,28 +22,28 @@ services:
 networks:
   default:
     external: true
-    name: ${SECUTIRY_GROUP}
+    name: ${SG_PRIVATE}
 secrets:
   MYSQL_USER:
-    name: ${MYSQL_USER_ARN}
+    name: ${ARN_MYSQL_USER}
     external: true
   MYSQL_PASSWORD:
-    name: ${MYSQL_PASSWORD_ARN}
+    name: ${ARN_MYSQL_PASSWORD}
     external: true
   MYSQL_DATABASE:
-    name: ${MYSQL_DATABASE_ARN}
+    name: ${ARN_MYSQL_DATABASE}
     external: true
   MYSQL_PORT:
-    name: ${MYSQL_PORT_ARN}
+    name: ${ARN_MYSQL_PORT}
     external: true
   MYSQL_HOST:
-    name: ${MYSQL_HOST_ARN}
+    name: ${ARN_MYSQL_HOST}
     external: true
   ENCRYPT_SECRET_KEY:
-    name: ${ENCRYPT_SECRET_KEY_ARN}
+    name: ${ARN_ENCRYPT_SECRET_KEY}
     external: true
   JWT_SECRET_KEY:
-    name: ${JWT_SECRET_KEY_ARN}
+    name: ${ARN_JWT_SECRET_KEY}
     external: true
 
 x-aws-cloudformation:
@@ -53,4 +53,5 @@ x-aws-cloudformation:
         NetworkConfiguration:
           AwsvpcConfiguration:
             Subnets:
-              - ${SUBNET}
+              - ${SUBNET_ONE}
+              - ${SUBNET_TWO}

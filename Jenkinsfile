@@ -73,13 +73,13 @@ pipeline {
     }
     stage("Deploy to ECS"){
       environment {
-        ARN_ENCRYPT_SECRET_KEY: "${sh(script: """cat data.json | jq -r '.["body"]["ARN_ENCRYPT_SECRET_KEY"]'""", returnStdout: true).trim()}"
-        ARN_JWT_SECRET_KEY: "${sh(script: """cat data.json | jq -r '.["body"]["ARN_JWT_SECRET_KEY"]'""", returnStdout: true).trim()}"
-        ARN_MYSQL_DATABASE: "${sh(script: """cat data.json | jq -r '.["body"]["ARN_MYSQL_DATABASE"]'""", returnStdout: true).trim()}"
-        ARN_MYSQL_HOST: "${sh(script: """cat data.json | jq -r '.["body"]["ARN_MYSQL_HOST"]'""", returnStdout: true).trim()}"
-        ARN_MYSQL_PASSWORD: "${sh(script: """cat data.json | jq -r '.["body"]["ARN_MYSQL_PASSWORD"]'""", returnStdout: true).trim()}"
-        ARN_MYSQL_PORT: "${sh(script: """cat data.json | jq -r '.["body"]["ARN_MYSQL_PORT"]'""", returnStdout: true).trim()}"
-        ARN_MYSQL_USER: "${sh(script: """cat data.json | jq -r '.["body"]["ARN_MYSQL_USER"]'""", returnStdout: true).trim()}"
+        ARN_ENCRYPT_SECRET_KEY = "${sh(script: """cat data.json | jq -r '.["body"]["ARN_ENCRYPT_SECRET_KEY"]'""", returnStdout: true).trim()}"
+        ARN_JWT_SECRET_KEY = "${sh(script: """cat data.json | jq -r '.["body"]["ARN_JWT_SECRET_KEY"]'""", returnStdout: true).trim()}"
+        ARN_MYSQL_DATABASE = "${sh(script: """cat data.json | jq -r '.["body"]["ARN_MYSQL_DATABASE"]'""", returnStdout: true).trim()}"
+        ARN_MYSQL_HOST = "${sh(script: """cat data.json | jq -r '.["body"]["ARN_MYSQL_HOST"]'""", returnStdout: true).trim()}"
+        ARN_MYSQL_PASSWORD = "${sh(script: """cat data.json | jq -r '.["body"]["ARN_MYSQL_PASSWORD"]'""", returnStdout: true).trim()}"
+        ARN_MYSQL_PORT = "${sh(script: """cat data.json | jq -r '.["body"]["ARN_MYSQL_PORT"]'""", returnStdout: true).trim()}"
+        ARN_MYSQL_USER = "${sh(script: """cat data.json | jq -r '.["body"]["ARN_MYSQL_USER"]'""", returnStdout: true).trim()}"
         APP_PORT = "${sh(script: """cat data.json | jq -r '.["body"]["APP_PORT"]'""", returnStdout: true).trim()}"
         CLUSTER = "${sh(script: """cat data.json | jq -r '.["body"]["CLUSTER"]'""", returnStdout: true).trim()}"
         LOAD_BALANCER = "${sh(script: """cat data.json | jq -r '.["body"]["LOAD_BALANCER"]'""", returnStdout: true).trim()}"
@@ -87,7 +87,7 @@ pipeline {
         SUBNET_ONE = "${sh(script: """cat data.json | jq -r '.["body"]["SUBNET_ONE"]'""", returnStdout: true).trim()}"
         SUBNET_TWO = "${sh(script: """cat data.json | jq -r '.["body"]["SUBNET_TWO"]'""", returnStdout: true).trim()}"
         VPC = "${sh(script: """cat data.json | jq -r '.["body"]["VPC"]'""", returnStdout: true).trim()}"
-        WAIT_TIME: "${sh(script: """cat data.json | jq -r '.["body"]["WAIT_TIME"]'""", returnStdout: true).trim()}"
+        WAIT_TIME = "${sh(script: """cat data.json | jq -r '.["body"]["WAIT_TIME"]'""", returnStdout: true).trim()}"
       }
       steps {
         sh "docker context use prod-jd"

@@ -1,110 +1,104 @@
-import groovy.json.JsonSlurper
-
-def data = ""
-def gv
-
 pipeline {
-  agent any
-
+  agent {
+    node {
+      label "worker-one"
+    }
+  }
   tools {
     maven 'Maven'
   }
-
   parameters {
     booleanParam(name: "IS_CLEANWORKSPACE", defaultValue: "true", description: "Set to false to disable folder cleanup, default true.")
     booleanParam(name: "IS_DEPLOYING", defaultValue: "true", description: "Set to false to skip deployment, default true.")
     booleanParam(name: "IS_TESTING", defaultValue: "false", description: "Set to false to skip testing, default true!")
   }
-
   environment {
     AWS_ACCOUNT_ID = credentials("AWS_ACCOUNT_ID")
-    DOCKER_IMAGE = "bank"
-    ECR_REGION = "us-east-2"
+    AWS_PROFILE = credentials("AWS_PROFILE")
     COMMIT_HASH = "${sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()}"
+    DOCKER_IMAGE = "bank"
+    ECR_REGION = credentials("AWS_REGION")
   }
 
   stages {
     stage("init") {
       steps {
-          script {
-          gv = load "script.groovy"
-        }
-      }
-    }
-    stage("Build") {
-      steps {
-        script {
-          gv.buildApp()
-        }
+        checkout([$class: 'GitSCM', branches: [[name: '*/dev']], extensions: [], userRemoteConfigs: [[credentialsId: '8144cd2a-3eab-4735-948a-7ec9e898acc4', url: 'https://github.com/The-Black-Eyed-Beans/aline-bank-microservice-jd.git']]])
       }
     }
     stage("Test") {
       steps {
         script {
-          gv.testApp()
+          if (params.IS_TESTING) {
+            sh "mvn clean test -Dmaven.test.failure.ignore=true"
+          }
         }
       } 
-    }    
+    }   
+    stage("Package Artifact") {
+      steps {
+        sh "git submodule init"
+        sh "git submodule update"
+        sh "mvn package"
+      }
+    } 
     stage("SonarQube") {
       steps {
         withSonarQubeEnv("us-west-1-sonar") {
-            sh "mvn verify sonar:sonar"
+          sh "mvn verify sonar:sonar"
         }
       }
     }
     stage("Await Quality Gate") {
       steps {
-          waitForQualityGate abortPipeline: true
+        waitForQualityGate abortPipeline: true
       }
     }
     stage("Upstream to ECR") {
       steps {
-        script {
-          gv.upstreamToECR()
-        }
+        upstreamToECR()
       }
     }
-    stage("Get Secrets"){
+    stage("Fetch Environment Variables"){
       steps {
-        sh """aws secretsmanager  get-secret-value --secret-id prod/services --region us-east-2 --profile joshua | jq -r '.["SecretString"]' | jq '.' > secrets"""
-      }
-    }
-    stage("Create Deployment Environment"){
-      steps {
-        script {
-          secretKeys = """${sh(script: 'cat secrets | jq "keys"', returnStdout: true).trim()}"""
-          secretValues = """${sh(script: 'cat secrets | jq "values"', returnStdout: true).trim()}"""
-          def parser = new JsonSlurper()
-          def keys = parser.parseText(secretKeys)
-          def values = parser.parseText(secretValues)
-          for (key in keys) {
-              def val="${key}=${values[key]}"
-              data += "${val}\n"
-          }
-        }
-        script {
-          sh "rm -f .env && touch .env"
-          writeFile(file: '.env', text: data)
-          sh "echo 'BUILD_TAG=$COMMIT_HASH' >> .env"
-          sh "echo 'APP_PORT=80' >> .env"
-          sh "echo 'WAIT_TIME=1000' >> .env"
-          sh "cat .env"
-        }
+        sh "aws lambda invoke --function-name getServiceEnv env --profile $AWS_PROFILE"
+        createEnvFile()
       }
     }
     stage("Deploy to ECS"){
       steps {
-        sh "cat docker-compose.yaml"
         sh "docker context use prod-jd"
-        sh "docker compose -p $DOCKER_IMAGE --env-file .env up -d"
+        sh "docker compose -p $DOCKER_IMAGE-jd --env-file service.env up -d"
       }
     }
   }
   post {
     cleanup {
       script {
-          gv.postCleanup()
-        }
+        sh "docker context use default"
+        sh "rm -rf ./*"
+        sh "docker image prune -af"
+      }
     }
+  }
+}
+
+def createEnvFile() {
+  def env = sh(returnStdout: true, script: """cat ./env | jq '.["body"]'""").trim()
+  env = sh(returnStdout: true, script: """echo ${env} | base64 --decode""").trim()
+  writeFile file: 'service.env', text: env
+}
+
+def upstreamToECR() {
+  if (params.IS_DEPLOYING) {
+    env.CURRENT_HASH = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+    sh "cp $DOCKER_IMAGE-microservice/target/*.jar ."
+    sh "docker context use default"
+    sh 'aws ecr get-login-password --region $ECR_REGION --profile joshua | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com'
+    sh "docker build -t ${DOCKER_IMAGE} ."
+    sh 'docker tag $DOCKER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/$DOCKER_IMAGE-microservice-jd:$CURRENT_HASH'
+    sh 'docker tag $DOCKER_IMAGE:latest $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/$DOCKER_IMAGE-microservice-jd:latest'
+    sh 'docker push $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/$DOCKER_IMAGE-microservice-jd:$CURRENT_HASH'
+    sh 'docker push $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/$DOCKER_IMAGE-microservice-jd:latest'
   }
 }

@@ -21,11 +21,6 @@ pipeline {
   }
 
   stages {
-    stage("init") {
-      steps {
-        checkout([$class: 'GitSCM', branches: [[name: '*/dev']], extensions: [], userRemoteConfigs: [[credentialsId: '8144cd2a-3eab-4735-948a-7ec9e898acc4', url: 'https://github.com/The-Black-Eyed-Beans/aline-bank-microservice-jd.git']]])
-      }
-    }
     stage("Test") {
       steps {
         script {
@@ -84,8 +79,7 @@ pipeline {
 }
 
 def createEnvFile() {
-  def env = sh(returnStdout: true, script: """cat ./env | jq '.["body"]'""").trim()
-  env = sh(returnStdout: true, script: """echo ${env} | base64 --decode""").trim()
+  def env = sh(returnStdout: true, script: """cat ./env | jq -r '.["body"]' | | base64 --decode""").trim()
   writeFile file: 'service.env', text: env
 }
 

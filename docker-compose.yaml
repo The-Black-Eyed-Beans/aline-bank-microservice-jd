@@ -2,10 +2,14 @@ version: "3.9"
 
 x-aws-vpc: ${VPC}
 x-aws-cluster: ${CLUSTER}
+x-aws-loadbalancer: ${LOAD_BALANCER}
 
 services:
   bank-microservice:
     image: $AWS_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/bank-microservice-jd:latest
+    ports:
+      - target: ${APP_PORT}
+        x-aws-protocol: http
     networks:
       - default
     secrets:
@@ -55,3 +59,8 @@ x-aws-cloudformation:
             Subnets:
               - ${SUBNET_ONE}
               - ${SUBNET_TWO}
+    Bank80TCPTargetGroup:
+      Properties:
+        HealthCheckPath: /health
+        Matcher:
+          HttpCode: 200-499

@@ -79,7 +79,7 @@ pipeline {
 }
 
 def createEnvFile() {
-  def env = sh(returnStdout: true, script: """cat ./env | jq -r '.["body"]' | | base64 --decode""").trim()
+  def env = sh(returnStdout: true, script: """cat ./env | jq -r '.["body"]' | base64 --decode""").trim()
   writeFile file: 'service.env', text: env
 }
 

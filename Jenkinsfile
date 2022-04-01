@@ -25,7 +25,7 @@ pipeline {
       steps {
         script {
           if (params.IS_TESTING) {
-            sh "mvn clean test -Dmaven.test.failure.ignore=true"
+            sh "mvn clean test"
           }
         }
       } 
@@ -40,7 +40,7 @@ pipeline {
     stage("SonarQube") {
       steps {
         withSonarQubeEnv("us-west-1-sonar") {
-          sh "mvn verify sonar:sonar"
+          sh "mvn verify sonar:sonar -Dmaven.test.failure.ignore=true"
         }
       }
     }

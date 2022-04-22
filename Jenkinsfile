@@ -60,6 +60,11 @@ pipeline {
         upstreamToECR()
       }
     }
+    stage("Upstream to Artifactory") {
+      steps {
+          upstreamToArtifactory()
+      }
+    }
     stage("Fetch Environment Variables"){
       steps {
         sh "aws lambda invoke --function-name getServiceEnv env --profile $AWS_PROFILE"
@@ -98,6 +103,18 @@ def createEnvFile() {
 
 def getIsECS() {
     return sh(returnStdout: true, script: """aws secretsmanager  get-secret-value --secret-id prod/infrastructure/config --region us-east-2 | jq -r '.["SecretString"]' | jq -r '.["is_ecs"]'""").trim().toBoolean()
+}
+
+def upstreamToArtifactory() {
+  if (params.IS_DEPLOYING) {
+    sh "docker context use default"
+    sh "docker login -u $A_USER -p $A_PASSWORD $A_URL"
+    sh 'docker tag $DOCKER_IMAGE:latest $A_URL/docker-local/$DOCKER_IMAGE:$COMMIT_HASH'
+    sh 'docker tag $DOCKER_IMAGE:latest $A_URL/docker-local/$DOCKER_IMAGE:latest'
+    sh 'docker push $A_URL/docker-local/$DOCKER_IMAGE:latest'
+    sh 'docker push $A_URL/docker-local/$DOCKER_IMAGE:$COMMIT_HASH'
+    sh 'mvn deploy'
+  }
 }
 
 def upstreamToECR() {

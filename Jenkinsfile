@@ -40,7 +40,7 @@ pipeline {
     }   
     stage("Package Artifact") {
       steps {
-        sh "mvn package"
+        sh "mvn package -DskipTests"
       }
     } 
     stage("SonarQube") {
@@ -62,19 +62,23 @@ pipeline {
     }
     stage("Fetch Environment Variables"){
       steps {
-        sh "aws lambda invoke --function-name getServiceEnv env --profile $AWS_PROFILE"
-        createEnvFile()
+        script {
+          if (env.IS_ECS.toBoolean()) {
+            sh "aws lambda invoke --function-name getServiceEnv env --profile $AWS_PROFILE"
+            createEnvFile()
+          }
+        }
       }
     }
     stage("Update Cluster"){
       steps {
         script {
-          if (env.IS_ECS) {
+          if (env.IS_ECS.toBoolean()) {
             sh "docker context use prod-jd"
             sh "docker compose -p $DOCKER_IMAGE-jd --env-file service.env up -d"
           } else  {
             sh "aws eks update-kubeconfig --name=$CLUSTER_NAME --region=us-east-2"
-            sh "kubectl rollout restart deploy bank-deployment -n backend"
+            sh "kubectl rollout restart deploy account-deployment -n backend"
           }
         }
       }
@@ -97,7 +101,7 @@ def createEnvFile() {
 }
 
 def getIsECS() {
-    return sh(returnStdout: true, script: """aws secretsmanager  get-secret-value --secret-id prod/infrastructure/config --region us-east-2 | jq -r '.["SecretString"]' | jq -r '.["is_ecs"]'""").trim().toBoolean()
+    return sh(returnStdout: true, script: """aws secretsmanager  get-secret-value --secret-id prod/infrastructure/config --region us-east-2 | jq -r '.["SecretString"]' | jq -r '.["is_ecs"]'""").trim()
 }
 
 def upstreamToECR() {

@@ -15,9 +15,11 @@ pipeline {
   environment {
     AWS_ACCOUNT_ID = credentials("AWS_ACCOUNT_ID")
     AWS_PROFILE = credentials("AWS_PROFILE")
+    CLUSTER_NAME = credentials("CLUSTER_NAME")
     COMMIT_HASH = "${sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()}"
     DOCKER_IMAGE = "bank"
     ECR_REGION = credentials("AWS_REGION")
+    IS_ECS = getIsECS()
   }
 
   stages {
@@ -38,7 +40,7 @@ pipeline {
     }   
     stage("Package Artifact") {
       steps {
-        sh "mvn package"
+        sh "mvn package -DskipTests"
       }
     } 
     stage("SonarQube") {
@@ -60,14 +62,25 @@ pipeline {
     }
     stage("Fetch Environment Variables"){
       steps {
-        sh "aws lambda invoke --function-name getServiceEnv env --profile $AWS_PROFILE"
-        createEnvFile()
+        script {
+          if (env.IS_ECS.toBoolean()) {
+            sh "aws lambda invoke --function-name getServiceEnv env --profile $AWS_PROFILE"
+            createEnvFile()
+          }
+        }
       }
     }
-    stage("Deploy to ECS"){
+    stage("Update Cluster"){
       steps {
-        sh "docker context use prod-jd"
-        sh "docker compose -p $DOCKER_IMAGE-jd --env-file service.env up -d"
+        script {
+          if (env.IS_ECS.toBoolean()) {
+            sh "docker context use prod-jd"
+            sh "docker compose -p $DOCKER_IMAGE-jd --env-file service.env up -d"
+          } else  {
+            sh "aws eks update-kubeconfig --name=$CLUSTER_NAME --region=us-east-2"
+            sh "kubectl rollout restart deploy account-deployment -n backend"
+          }
+        }
       }
     }
   }
@@ -85,6 +98,10 @@ pipeline {
 def createEnvFile() {
   def env = sh(returnStdout: true, script: """cat ./env | jq -r '.["body"]' | base64 --decode""").trim()
   writeFile file: 'service.env', text: env
+}
+
+def getIsECS() {
+    return sh(returnStdout: true, script: """aws secretsmanager  get-secret-value --secret-id prod/infrastructure/config --region us-east-2 | jq -r '.["SecretString"]' | jq -r '.["is_ecs"]'""").trim()
 }
 
 def upstreamToECR() {

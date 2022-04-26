@@ -78,7 +78,7 @@ pipeline {
             sh "docker compose -p $DOCKER_IMAGE-jd --env-file service.env up -d"
           } else  {
             sh "aws eks update-kubeconfig --name=$CLUSTER_NAME --region=us-east-2"
-            sh "kubectl rollout restart deploy account-deployment -n backend"
+            sh "kubectl rollout restart deploy $DOCKER_IMAGE-deployment -n backend"
           }
         }
       }
